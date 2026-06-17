@@ -41,4 +41,11 @@ public class UserService {
         UserEntity saved = userRepository.save(targetUser);
         return authService.mapToUserResponse(saved);
     }
+
+    @Transactional(readOnly = true)
+    public java.util.List<UserResponseDto> getAllUsers() {
+        return userRepository.findAll().stream()
+                .map(authService::mapToUserResponse)
+                .collect(java.util.stream.Collectors.toList());
+    }
 }

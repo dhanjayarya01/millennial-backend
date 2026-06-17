@@ -27,4 +27,9 @@ public class UserController {
         UserResponseDto response = userService.verifyUser(id, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponseDto.success("User verified successfully", response));
     }
+
+    @org.springframework.web.bind.annotation.GetMapping
+    public ResponseEntity<ApiResponseDto<java.util.List<UserResponseDto>>> getAllUsers() {
+        return ResponseEntity.ok(ApiResponseDto.success("Users retrieved successfully", userService.getAllUsers()));
+    }
 }

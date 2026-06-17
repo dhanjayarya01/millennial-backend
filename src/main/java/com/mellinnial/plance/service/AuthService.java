@@ -71,10 +71,14 @@ public class AuthService {
                 )
         );
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(request.getEmail().toLowerCase());
-        
         UserEntity user = userRepository.findByEmail(request.getEmail().toLowerCase())
                 .orElseThrow(() -> new IllegalStateException("User not found: " + request.getEmail()));
+
+        UserDetails userDetails = new org.springframework.security.core.userdetails.User(
+                user.getEmail(),
+                user.getPassword(),
+                java.util.Collections.singletonList(new org.springframework.security.core.authority.SimpleGrantedAuthority(user.getRole().getName().name()))
+        );
 
         String jwt = jwtService.generateToken(userDetails);
 
