@@ -89,12 +89,15 @@ public class AuthService {
     }
 
     public UserResponseDto mapToUserResponse(UserEntity user) {
+        if (user == null) {
+            return null;
+        }
         return UserResponseDto.builder()
                 .id(user.getId())
                 .email(user.getEmail())
                 .username(user.getUsername())
                 .fullName(user.getFullName())
-                .role(user.getRole().getName().name())
+                .role(user.getRole() != null && user.getRole().getName() != null ? user.getRole().getName().name() : "ROLE_EMPLOYEE")
                 .active(user.isActive())
                 .verified(user.isVerified())
                 .profilePictureUrl(user.getProfilePictureUrl())

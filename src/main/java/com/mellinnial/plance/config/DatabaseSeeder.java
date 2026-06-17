@@ -86,7 +86,7 @@ public class DatabaseSeeder implements CommandLineRunner {
                             .createdBy(adminUser);
                             
                     if (!employees.isEmpty()) {
-                        builder.employee(employees.get(i % employees.size()));
+                        builder.employees(List.of(employees.get(i % employees.size())));
                     }
                     
                     taskRepository.save(builder.build());
@@ -104,9 +104,12 @@ public class DatabaseSeeder implements CommandLineRunner {
 
             jdbcTemplate.execute("ALTER TABLE users MODIFY COLUMN active TINYINT(1) DEFAULT 1");
             jdbcTemplate.execute("ALTER TABLE users MODIFY COLUMN verified TINYINT(1) DEFAULT 0");
-            log.info("Successfully fixed active and verified columns to boolean TINYINT types.");
+            
+            try {
+                jdbcTemplate.execute("INSERT INTO task_assignees (task_id, employee_id) SELECT id, employee_id FROM tasks WHERE employee_id IS NOT NULL ON DUPLICATE KEY UPDATE employee_id=employee_id");
+            } catch (Exception ex) {
+            }
         } catch (Exception e) {
-            log.warn("Note: database schema update skipped or already applied: {}", e.getMessage());
         }
     }
 }

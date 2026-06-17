@@ -40,7 +40,7 @@ public class ProjectService {
                 .description(dto.getDescription())
                 .startDate(dto.getStartDate())
                 .endDate(dto.getEndDate())
-                .status(ProjectStatus.valueOf(dto.getStatus().toUpperCase()))
+                .status(ProjectStatus.valueOf(dto.getStatus().replace("-", "_").toUpperCase()))
                 .build();
 
         if (dto.getManagerId() != null) {
@@ -97,7 +97,7 @@ public class ProjectService {
             project.setDescription(dto.getDescription());
             project.setStartDate(dto.getStartDate());
             project.setEndDate(dto.getEndDate());
-            project.setStatus(ProjectStatus.valueOf(dto.getStatus().toUpperCase()));
+            project.setStatus(ProjectStatus.valueOf(dto.getStatus().replace("-", "_").toUpperCase()));
 
             if (dto.getManagerId() != null) {
                 UserEntity manager = userRepository.findById(dto.getManagerId())
@@ -117,7 +117,7 @@ public class ProjectService {
             project.setDescription(dto.getDescription());
             project.setStartDate(dto.getStartDate());
             project.setEndDate(dto.getEndDate());
-            project.setStatus(ProjectStatus.valueOf(dto.getStatus().toUpperCase()));
+            project.setStatus(ProjectStatus.valueOf(dto.getStatus().replace("-", "_").toUpperCase()));
         } else {
             throw new AccessDeniedException("Employees cannot update projects");
         }
@@ -259,9 +259,11 @@ public class ProjectService {
         long completedTasks = taskRepository.countByProjectAndStatus(project, com.mellinnial.plance.entity.TaskStatus.COMPLETED);
         double progress = totalTasks > 0 ? ((double) completedTasks / totalTasks) * 100.0 : 0.0;
 
-        Set<UserResponseDto> employees = project.getAssignedEmployees().stream()
+        Set<UserResponseDto> employees = project.getAssignedEmployees() != null ? project.getAssignedEmployees().stream()
+                .filter(java.util.Objects::nonNull)
                 .map(authService::mapToUserResponse)
-                .collect(Collectors.toSet());
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet()) : java.util.Collections.emptySet();
 
         return ProjectResponseDto.builder()
                 .id(project.getId())

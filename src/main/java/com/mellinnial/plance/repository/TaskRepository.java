@@ -12,7 +12,7 @@ import java.util.List;
 @Repository
 public interface TaskRepository extends JpaRepository<TaskEntity, Long> {
     List<TaskEntity> findByProject(ProjectEntity project);
-    List<TaskEntity> findByEmployee(UserEntity employee);
+    List<TaskEntity> findByEmployeesContaining(UserEntity employee);
     List<TaskEntity> findByProjectIn(List<ProjectEntity> projects);
     long countByProject(ProjectEntity project);
     long countByProjectAndStatus(ProjectEntity project, TaskStatus status);

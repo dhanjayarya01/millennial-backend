@@ -37,24 +37,46 @@ public class TaskService {
         TaskEntity task = TaskEntity.builder()
                 .name(dto.getName())
                 .description(dto.getDescription())
-                .priority(TaskPriority.valueOf(dto.getPriority().toUpperCase()))
-                .status(TaskStatus.valueOf(dto.getStatus().toUpperCase()))
+                .priority(mapTaskPriority(dto.getPriority()))
+                .status(mapTaskStatus(dto.getStatus()))
                 .deadline(dto.getDeadline())
                 .estimatedHours(dto.getEstimatedHours())
                 .project(project)
                 .createdBy(currentUser)
                 .build();
 
-        if (dto.getEmployeeId() != null) {
+        if (dto.getEmployeeIds() != null && !dto.getEmployeeIds().isEmpty()) {
+            java.util.List<UserEntity> assignees = new java.util.ArrayList<>();
+            for (Long empId : dto.getEmployeeIds()) {
+                UserEntity employee = userRepository.findById(empId)
+                        .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
+                if (employee.getRole() == null || employee.getRole().getName() != RoleType.ROLE_EMPLOYEE) {
+                    throw new IllegalArgumentException("Assigned user is not an employee");
+                }
+                if (project.getAssignedEmployees() == null) {
+                    project.setAssignedEmployees(new java.util.HashSet<>());
+                }
+                if (!project.getAssignedEmployees().contains(employee)) {
+                    project.getAssignedEmployees().add(employee);
+                }
+                assignees.add(employee);
+            }
+            projectRepository.save(project);
+            setEmployeesSafely(task, assignees);
+        } else if (dto.getEmployeeId() != null) {
             UserEntity employee = userRepository.findById(dto.getEmployeeId())
                     .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
-            if (employee.getRole().getName() != RoleType.ROLE_EMPLOYEE) {
+            if (employee.getRole() == null || employee.getRole().getName() != RoleType.ROLE_EMPLOYEE) {
                 throw new IllegalArgumentException("Assigned user is not an employee");
             }
-            if (!project.getAssignedEmployees().contains(employee)) {
-                throw new IllegalArgumentException("Employee must be assigned to the project first");
+            if (project.getAssignedEmployees() == null) {
+                project.setAssignedEmployees(new java.util.HashSet<>());
             }
-            task.setEmployee(employee);
+            if (!project.getAssignedEmployees().contains(employee)) {
+                project.getAssignedEmployees().add(employee);
+                projectRepository.save(project);
+            }
+            setEmployeesSafely(task, java.util.List.of(employee));
         }
 
         TaskEntity saved = taskRepository.save(task);
@@ -73,7 +95,7 @@ public class TaskService {
             List<ProjectEntity> managedProjects = projectRepository.findByManager(currentUser);
             tasks = taskRepository.findByProjectIn(managedProjects);
         } else {
-            tasks = taskRepository.findByEmployee(currentUser);
+            tasks = taskRepository.findByEmployeesContaining(currentUser);
         }
 
         return tasks.stream()
@@ -99,23 +121,46 @@ public class TaskService {
 
         task.setName(dto.getName());
         task.setDescription(dto.getDescription());
-        task.setPriority(TaskPriority.valueOf(dto.getPriority().toUpperCase()));
-        task.setStatus(TaskStatus.valueOf(dto.getStatus().toUpperCase()));
+        task.setPriority(mapTaskPriority(dto.getPriority()));
+        task.setStatus(mapTaskStatus(dto.getStatus()));
         task.setDeadline(dto.getDeadline());
         task.setEstimatedHours(dto.getEstimatedHours());
 
-        if (dto.getEmployeeId() != null) {
+        ProjectEntity project = task.getProject();
+        if (dto.getEmployeeIds() != null && !dto.getEmployeeIds().isEmpty()) {
+            java.util.List<UserEntity> assignees = new java.util.ArrayList<>();
+            for (Long empId : dto.getEmployeeIds()) {
+                UserEntity employee = userRepository.findById(empId)
+                        .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
+                if (employee.getRole() == null || employee.getRole().getName() != RoleType.ROLE_EMPLOYEE) {
+                    throw new IllegalArgumentException("Assigned user is not an employee");
+                }
+                if (project.getAssignedEmployees() == null) {
+                    project.setAssignedEmployees(new java.util.HashSet<>());
+                }
+                if (!project.getAssignedEmployees().contains(employee)) {
+                    project.getAssignedEmployees().add(employee);
+                }
+                assignees.add(employee);
+            }
+            projectRepository.save(project);
+            setEmployeesSafely(task, assignees);
+        } else if (dto.getEmployeeId() != null) {
             UserEntity employee = userRepository.findById(dto.getEmployeeId())
                     .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
-            if (employee.getRole().getName() != RoleType.ROLE_EMPLOYEE) {
+            if (employee.getRole() == null || employee.getRole().getName() != RoleType.ROLE_EMPLOYEE) {
                 throw new IllegalArgumentException("Assigned user is not an employee");
             }
-            if (!task.getProject().getAssignedEmployees().contains(employee)) {
-                throw new IllegalArgumentException("Employee must be assigned to the project first");
+            if (project.getAssignedEmployees() == null) {
+                project.setAssignedEmployees(new java.util.HashSet<>());
             }
-            task.setEmployee(employee);
+            if (!project.getAssignedEmployees().contains(employee)) {
+                project.getAssignedEmployees().add(employee);
+                projectRepository.save(project);
+            }
+            setEmployeesSafely(task, java.util.List.of(employee));
         } else {
-            task.setEmployee(null);
+            setEmployeesSafely(task, null);
         }
 
         TaskEntity saved = taskRepository.save(task);
@@ -132,13 +177,13 @@ public class TaskService {
 
         boolean isAuthorized = role == RoleType.ROLE_ADMIN
                 || (role == RoleType.ROLE_PROJECT_MANAGER && task.getProject().getManager() != null && task.getProject().getManager().getId().equals(currentUser.getId()))
-                || (role == RoleType.ROLE_EMPLOYEE && task.getEmployee() != null && task.getEmployee().getId().equals(currentUser.getId()));
+                || (role == RoleType.ROLE_EMPLOYEE && task.getEmployees() != null && task.getEmployees().stream().anyMatch(e -> e.getId().equals(currentUser.getId())));
 
         if (!isAuthorized) {
             throw new AccessDeniedException("You are not authorized to update this task status");
         }
 
-        task.setStatus(TaskStatus.valueOf(dto.getStatus().toUpperCase()));
+        task.setStatus(mapTaskStatus(dto.getStatus()));
         TaskEntity saved = taskRepository.save(task);
         return mapToTaskResponse(saved);
     }
@@ -153,15 +198,19 @@ public class TaskService {
         UserEntity employee = userRepository.findById(employeeId)
                 .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
 
-        if (employee.getRole().getName() != RoleType.ROLE_EMPLOYEE) {
+        if (employee.getRole() == null || employee.getRole().getName() != RoleType.ROLE_EMPLOYEE) {
             throw new IllegalArgumentException("User is not an employee");
         }
 
+        if (task.getProject().getAssignedEmployees() == null) {
+            task.getProject().setAssignedEmployees(new java.util.HashSet<>());
+        }
         if (!task.getProject().getAssignedEmployees().contains(employee)) {
-            throw new IllegalArgumentException("Employee must be assigned to the project first");
+            task.getProject().getAssignedEmployees().add(employee);
+            projectRepository.save(task.getProject());
         }
 
-        task.setEmployee(employee);
+        setEmployeesSafely(task, java.util.List.of(employee));
         TaskEntity saved = taskRepository.save(task);
         return mapToTaskResponse(saved);
     }
@@ -172,6 +221,17 @@ public class TaskService {
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
         projectService.validateProjectManagementAccess(task.getProject(), username);
         taskRepository.delete(task);
+    }
+
+    private void setEmployeesSafely(TaskEntity task, java.util.List<UserEntity> newEmployees) {
+        if (task.getEmployees() == null) {
+            task.setEmployees(new java.util.ArrayList<>());
+        } else {
+            task.getEmployees().clear();
+        }
+        if (newEmployees != null) {
+            task.getEmployees().addAll(newEmployees);
+        }
     }
 
     private void validateTaskAccess(TaskEntity task, String username) {
@@ -189,7 +249,7 @@ public class TaskService {
             return;
         }
 
-        if (task.getEmployee() == null || !task.getEmployee().getId().equals(currentUser.getId())) {
+        if (task.getEmployees() == null || task.getEmployees().stream().noneMatch(e -> e.getId().equals(currentUser.getId()))) {
             throw new AccessDeniedException("Access denied to this task");
         }
     }
@@ -210,8 +270,30 @@ public class TaskService {
                 .estimatedHours(task.getEstimatedHours())
                 .projectId(task.getProject().getId())
                 .projectName(task.getProject().getName())
-                .employee(task.getEmployee() != null ? authService.mapToUserResponse(task.getEmployee()) : null)
-                .createdBy(authService.mapToUserResponse(task.getCreatedBy()))
+                .employees(task.getEmployees() != null ? task.getEmployees().stream().filter(java.util.Objects::nonNull).map(authService::mapToUserResponse).filter(java.util.Objects::nonNull).collect(Collectors.toList()) : java.util.List.of())
+                .employee(task.getEmployees() != null && !task.getEmployees().isEmpty() && task.getEmployees().get(0) != null ? authService.mapToUserResponse(task.getEmployees().get(0)) : null)
+                .createdBy(task.getCreatedBy() != null ? authService.mapToUserResponse(task.getCreatedBy()) : null)
                 .build();
+    }
+
+    private TaskStatus mapTaskStatus(String statusStr) {
+        if (statusStr == null) return TaskStatus.TO_DO;
+        String s = statusStr.replace("-", "_").toUpperCase();
+        if (s.equals("TODO") || s.equals("TO_DO")) return TaskStatus.TO_DO;
+        if (s.equals("IN_PROGRESS")) return TaskStatus.IN_PROGRESS;
+        if (s.equals("REVIEW") || s.equals("IN_REVIEW")) return TaskStatus.IN_REVIEW;
+        if (s.equals("DONE") || s.equals("COMPLETED")) return TaskStatus.COMPLETED;
+        if (s.equals("BLOCKED")) return TaskStatus.BLOCKED;
+        return TaskStatus.TO_DO;
+    }
+
+    private TaskPriority mapTaskPriority(String priorityStr) {
+        if (priorityStr == null) return TaskPriority.MEDIUM;
+        String p = priorityStr.toUpperCase();
+        if (p.equals("LOW")) return TaskPriority.LOW;
+        if (p.equals("MEDIUM")) return TaskPriority.MEDIUM;
+        if (p.equals("HIGH")) return TaskPriority.HIGH;
+        if (p.equals("URGENT") || p.equals("CRITICAL")) return TaskPriority.CRITICAL;
+        return TaskPriority.MEDIUM;
     }
 }

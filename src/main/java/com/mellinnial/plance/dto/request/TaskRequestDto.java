@@ -26,4 +26,5 @@ public class TaskRequestDto {
     private Double estimatedHours;
 
     private Long employeeId;
+    private java.util.List<Long> employeeIds;
 }

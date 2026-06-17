@@ -22,5 +22,6 @@ public class TaskResponseDto {
     private Long projectId;
     private String projectName;
     private UserResponseDto employee;
+    private java.util.List<UserResponseDto> employees;
     private UserResponseDto createdBy;
 }
