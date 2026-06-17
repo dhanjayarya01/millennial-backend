@@ -168,14 +168,10 @@ public class TaskService {
 
     @Transactional
     public void deleteTask(Long id, String username) {
-        UserEntity currentUser = getCurrentUser(username);
-        if (currentUser.getRole().getName() != RoleType.ROLE_ADMIN) {
-            throw new AccessDeniedException("Only administrators can delete tasks");
-        }
-        if (!taskRepository.existsById(id)) {
-            throw new IllegalArgumentException("Task not found");
-        }
-        taskRepository.deleteById(id);
+        TaskEntity task = taskRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+        projectService.validateProjectManagementAccess(task.getProject(), username);
+        taskRepository.delete(task);
     }
 
     private void validateTaskAccess(TaskEntity task, String username) {
