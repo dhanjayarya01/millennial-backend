@@ -10,4 +10,5 @@ import java.util.Optional;
 public interface NotificationRepository extends JpaRepository<NotificationEntity, Long> {
     Optional<NotificationEntity> findByTaskIdAndUserIdAndType(Long taskId, Long userId, String type);
     boolean existsByTaskIdAndUserIdAndType(Long taskId, Long userId, String type);
+    java.util.List<NotificationEntity> findByTaskIdIn(java.util.List<Long> taskIds);
 }

@@ -107,4 +107,52 @@ public class AuthService {
                 .createdAt(user.getCreatedAt())
                 .build();
     }
+
+    @Transactional
+    public void seedUsers() {
+        RoleEntity employeeRole = roleRepository.findByName(RoleType.ROLE_EMPLOYEE)
+                .orElseThrow(() -> new IllegalStateException("ROLE_EMPLOYEE not found"));
+        RoleEntity managerRole = roleRepository.findByName(RoleType.ROLE_PROJECT_MANAGER)
+                .orElseThrow(() -> new IllegalStateException("ROLE_PROJECT_MANAGER not found"));
+
+        String defaultPassword = passwordEncoder.encode("Wwewwe12@");
+
+        // Seed 5 Managers
+        for (int i = 1; i <= 5; i++) {
+            String email = "manager" + i + "@test.com";
+            String username = "manager" + i;
+            String fullName = "Manager " + i;
+            if (!userRepository.existsByEmail(email)) {
+                UserEntity user = UserEntity.builder()
+                        .fullName(fullName)
+                        .username(username)
+                        .email(email)
+                        .password(defaultPassword)
+                        .role(managerRole)
+                        .active(true)
+                        .verified(true)
+                        .build();
+                userRepository.save(user);
+            }
+        }
+
+        // Seed 10 Employees
+        for (int i = 1; i <= 10; i++) {
+            String email = "employee" + i + "@test.com";
+            String username = "employee" + i;
+            String fullName = "Employee " + i;
+            if (!userRepository.existsByEmail(email)) {
+                UserEntity user = UserEntity.builder()
+                        .fullName(fullName)
+                        .username(username)
+                        .email(email)
+                        .password(defaultPassword)
+                        .role(employeeRole)
+                        .active(true)
+                        .verified(true)
+                        .build();
+                userRepository.save(user);
+            }
+        }
+    }
 }

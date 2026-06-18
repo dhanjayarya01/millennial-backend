@@ -10,6 +10,11 @@ import com.mellinnial.plance.entity.enums.RoleType;
 import com.mellinnial.plance.repository.ProjectRepository;
 import com.mellinnial.plance.repository.TaskRepository;
 import com.mellinnial.plance.repository.UserRepository;
+import com.mellinnial.plance.repository.WorkLogRepository;
+import com.mellinnial.plance.repository.NotificationRepository;
+import com.mellinnial.plance.entity.TaskEntity;
+import com.mellinnial.plance.entity.NotificationEntity;
+import com.mellinnial.plance.entity.WorkLogEntity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -29,6 +34,8 @@ public class ProjectService {
     private final AuthService authService;
     private final AuditLogService auditLogService;
     private final NotificationService notificationService;
+    private final WorkLogRepository workLogRepository;
+    private final NotificationRepository notificationRepository;
 
     @Transactional
     public ProjectResponseDto createProject(ProjectRequestDto dto, String username) {
@@ -144,10 +151,30 @@ public class ProjectService {
         if (currentUser.getRole().getName() != RoleType.ROLE_ADMIN) {
             throw new AccessDeniedException("Only administrators can delete projects");
         }
-        if (!projectRepository.existsById(id)) {
-            throw new IllegalArgumentException("Project not found");
+        ProjectEntity project = projectRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+
+        List<TaskEntity> tasks = taskRepository.findByProject(project);
+        if (!tasks.isEmpty()) {
+            List<Long> taskIds = tasks.stream().map(TaskEntity::getId).collect(Collectors.toList());
+
+            // Delete notifications
+            List<NotificationEntity> notifications = notificationRepository.findByTaskIdIn(taskIds);
+            if (!notifications.isEmpty()) {
+                notificationRepository.deleteAll(notifications);
+            }
+
+            // Delete work logs (also deletes replies via CascadeType.ALL)
+            List<WorkLogEntity> workLogs = workLogRepository.findByTaskIdIn(taskIds);
+            if (!workLogs.isEmpty()) {
+                workLogRepository.deleteAll(workLogs);
+            }
+
+            // Delete tasks
+            taskRepository.deleteAll(tasks);
         }
-        projectRepository.deleteById(id);
+
+        projectRepository.delete(project);
     }
 
     @Transactional
