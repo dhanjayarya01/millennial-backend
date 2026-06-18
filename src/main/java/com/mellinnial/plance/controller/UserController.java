@@ -84,4 +84,29 @@ public class UserController {
             return ResponseEntity.badRequest().body(ApiResponseDto.error(e.getMessage()));
         }
     }
+
+    @org.springframework.web.bind.annotation.PostMapping("/{id}/notify")
+    public ResponseEntity<ApiResponseDto<String>> sendCustomSse(
+            @PathVariable Long id,
+            @RequestBody java.util.Map<String, String> body,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        String title = body.get("title");
+        String description = body.get("description");
+        String urgency = body.get("urgency");
+        userService.sendCustomSse(id, title, description, urgency, userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponseDto.success("Custom SSE notification sent successfully", "OK"));
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping("/{id}/email")
+    public ResponseEntity<ApiResponseDto<String>> sendCustomEmail(
+            @PathVariable Long id,
+            @RequestBody java.util.Map<String, String> body,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        String subject = body.get("subject");
+        String emailBody = body.get("body");
+        userService.sendCustomEmail(id, subject, emailBody, userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponseDto.success("Custom email sent successfully", "OK"));
+    }
 }

@@ -32,6 +32,7 @@ public class WorkLogService {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
+    private final NotificationService notificationService;
 
     @Transactional
     public WorkLogResponseDto createWorkLog(WorkLogRequestDto dto, String username) {
@@ -60,6 +61,14 @@ public class WorkLogService {
 
         auditLogService.logAction(author, "logged_work", "WorkLog", task.getName(), "—", dto.getHours() + " hours logged", task.getProject().getId());
 
+        // Notify Project Manager
+        if (task.getProject() != null && task.getProject().getManager() != null) {
+            UserEntity manager = task.getProject().getManager();
+            notificationService.sendSseNotification(manager.getId(), task.getId(), "WORK_LOG_CREATED", "Work Log Posted", author.getFullName() + " logged " + saved.getHours() + "h on task " + task.getName());
+            String emailHtml = "<p>Hello " + manager.getFullName() + ",</p><p>" + author.getFullName() + " logged <b>" + saved.getHours() + " hours</b> on task: <b>" + task.getName() + "</b>.</p>";
+            notificationService.sendEmail(manager.getEmail(), "New Work Log Entry", emailHtml);
+        }
+
         return mapToResponseDto(saved);
     }
 
@@ -80,6 +89,14 @@ public class WorkLogService {
         WorkLogReplyEntity saved = workLogReplyRepository.save(reply);
 
         auditLogService.logAction(author, "replied_to_worklog", "WorkLog", workLog.getTask().getName(), "—", dto.getMessage(), workLog.getTask().getProject().getId());
+
+        // Notify Work Log Author
+        if (workLog.getAuthor() != null && !workLog.getAuthor().getId().equals(author.getId())) {
+            UserEntity workLogAuthor = workLog.getAuthor();
+            notificationService.sendSseNotification(workLogAuthor.getId(), workLog.getTask().getId(), "WORK_LOG_REPLY", "Work Log Reply", author.getFullName() + " replied to your work log: " + saved.getMessage());
+            String emailHtml = "<p>Hello " + workLogAuthor.getFullName() + ",</p><p>" + author.getFullName() + " replied to your work log on task <b>" + workLog.getTask().getName() + "</b>:<br/><i>" + saved.getMessage() + "</i></p>";
+            notificationService.sendEmail(workLogAuthor.getEmail(), "New Reply on your Work Log", emailHtml);
+        }
 
         return mapToReplyResponseDto(saved);
     }

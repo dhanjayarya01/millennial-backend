@@ -20,6 +20,7 @@ public class UserService {
     private final RoleRepository roleRepository;
     private final AuthService authService;
     private final PasswordEncoder passwordEncoder;
+    private final NotificationService notificationService;
 
     @Transactional
     public UserResponseDto verifyUser(Long userId, String verifierEmail) {
@@ -44,6 +45,12 @@ public class UserService {
 
         targetUser.setVerified(true);
         UserEntity saved = userRepository.save(targetUser);
+
+        // Queue notifications
+        notificationService.sendSseNotification(saved.getId(), null, "ACCOUNT_VERIFIED", "Account Verified", "Your account has been verified");
+        String emailHtml = "<p>Hello " + saved.getFullName() + ",</p><p>Your account has been verified by Admin. You can now log in.</p>";
+        notificationService.sendEmail(saved.getEmail(), "Account Verified", emailHtml);
+
         return authService.mapToUserResponse(saved);
     }
 
@@ -108,5 +115,32 @@ public class UserService {
         }
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
+    }
+
+    @Transactional
+    public void sendCustomSse(Long userId, String title, String description, String urgency, String verifierEmail) {
+        UserEntity verifier = userRepository.findByEmail(verifierEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Verifier not found"));
+        if (verifier.getRole().getName() != RoleType.ROLE_ADMIN) {
+            throw new AccessDeniedException("Only administrators can send custom notifications");
+        }
+        UserEntity targetUser = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Target user not found"));
+
+        notificationService.sendSseNotification(targetUser.getId(), null, "CUSTOM_SSE", title, description);
+    }
+
+    @Transactional
+    public void sendCustomEmail(Long userId, String subject, String body, String verifierEmail) {
+        UserEntity verifier = userRepository.findByEmail(verifierEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Verifier not found"));
+        if (verifier.getRole().getName() != RoleType.ROLE_ADMIN) {
+            throw new AccessDeniedException("Only administrators can send custom emails");
+        }
+        UserEntity targetUser = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Target user not found"));
+
+        String emailHtml = "<p>Hello " + targetUser.getFullName() + ",</p><p>" + body + "</p>";
+        notificationService.sendEmail(targetUser.getEmail(), subject, emailHtml);
     }
 }

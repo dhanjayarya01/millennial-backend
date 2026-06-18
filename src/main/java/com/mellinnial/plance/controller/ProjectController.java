@@ -106,4 +106,29 @@ public class ProjectController {
         ProjectResponseDto response = projectService.removeEmployee(id, employeeId, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponseDto.success("Employee removed from project successfully", response));
     }
+
+    @PostMapping("/{id}/notify-all")
+    public ResponseEntity<ApiResponseDto<String>> notifyAll(
+            @PathVariable Long id,
+            @RequestBody java.util.Map<String, String> body,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        String title = body.get("title");
+        String description = body.get("description");
+        String urgency = body.get("urgency");
+        projectService.notifyAllMembers(id, title, description, urgency, userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponseDto.success("Custom SSE notifications broadcasted successfully", "OK"));
+    }
+
+    @PostMapping("/{id}/email-all")
+    public ResponseEntity<ApiResponseDto<String>> emailAll(
+            @PathVariable Long id,
+            @RequestBody java.util.Map<String, String> body,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        String subject = body.get("subject");
+        String emailBody = body.get("body");
+        projectService.emailAllMembers(id, subject, emailBody, userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponseDto.success("Custom emails broadcasted successfully", "OK"));
+    }
 }

@@ -28,6 +28,7 @@ public class ProjectService {
     private final TaskRepository taskRepository;
     private final AuthService authService;
     private final AuditLogService auditLogService;
+    private final NotificationService notificationService;
 
     @Transactional
     public ProjectResponseDto createProject(ProjectRequestDto dto, String username) {
@@ -55,6 +56,14 @@ public class ProjectService {
 
         ProjectEntity saved = projectRepository.save(project);
         auditLogService.logAction(currentUser, "created", "Project", saved.getName(), "—", saved.getStatus().name(), saved.getId());
+        
+        // Notify manager if assigned on creation
+        if (saved.getManager() != null) {
+            notificationService.sendSseNotification(saved.getManager().getId(), null, "PROJECT_ASSIGNED", "Project Manager Assignment", "You are assigned as Manager for project: " + saved.getName());
+            String emailHtml = "<p>Hello " + saved.getManager().getFullName() + ",</p><p>You are assigned as Manager for project: <b>" + saved.getName() + "</b>.</p>";
+            notificationService.sendEmail(saved.getManager().getEmail(), "Project Manager Assignment", emailHtml);
+        }
+        
         return mapToProjectResponse(saved);
     }
 
@@ -161,6 +170,12 @@ public class ProjectService {
         project.setManager(manager);
         ProjectEntity saved = projectRepository.save(project);
         auditLogService.logAction(currentUser, "assigned_manager", "Project", saved.getName(), "—", manager.getFullName(), saved.getId());
+        
+        // Notify assigned manager
+        notificationService.sendSseNotification(manager.getId(), null, "PROJECT_ASSIGNED", "Project Manager Assignment", "You are assigned as Manager for project: " + saved.getName());
+        String emailHtml = "<p>Hello " + manager.getFullName() + ",</p><p>You are assigned as Manager for project: <b>" + saved.getName() + "</b>.</p>";
+        notificationService.sendEmail(manager.getEmail(), "Project Manager Assignment", emailHtml);
+        
         return mapToProjectResponse(saved);
     }
 
@@ -197,6 +212,12 @@ public class ProjectService {
         ProjectEntity saved = projectRepository.save(project);
         UserEntity currentUser = getCurrentUser(username);
         auditLogService.logAction(currentUser, "assigned_employee", "Project", saved.getName(), "—", employee.getFullName(), saved.getId());
+        
+        // Notify assigned employee
+        notificationService.sendSseNotification(employee.getId(), null, "PROJECT_ASSIGNED", "Project Assignment", "You have been assigned to project: " + saved.getName());
+        String emailHtml = "<p>Hello " + employee.getFullName() + ",</p><p>You have been assigned to the project: <b>" + saved.getName() + "</b>.</p>";
+        notificationService.sendEmail(employee.getEmail(), "Project Assignment", emailHtml);
+        
         return mapToProjectResponse(saved);
     }
 
@@ -214,7 +235,65 @@ public class ProjectService {
         ProjectEntity saved = projectRepository.save(project);
         UserEntity currentUser = getCurrentUser(username);
         auditLogService.logAction(currentUser, "removed_employee", "Project", saved.getName(), "—", employee.getFullName(), saved.getId());
+
+        // Notify removed employee
+        notificationService.sendSseNotification(employee.getId(), null, "MEMBER_REMOVED", "Member Removed", "You have been removed from project: " + saved.getName());
+        String emailHtml = "<p>Hello " + employee.getFullName() + ",</p><p>You have been removed from the project: <strong>" + saved.getName() + "</strong>.</p>";
+        notificationService.sendEmail(employee.getEmail(), "Removed from Project: " + saved.getName(), emailHtml);
+
         return mapToProjectResponse(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public void notifyAllMembers(Long projectId, String title, String description, String urgency, String username) {
+        ProjectEntity project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+        validateProjectManagementAccess(project, username);
+
+        UserEntity currentUser = getCurrentUser(username);
+        String formattedDesc = "From " + currentUser.getFullName() + " (" + currentUser.getRole().getName().name().substring(5).replace("_", " ").toLowerCase() + "): " + description;
+
+        if (project.getManager() != null) {
+            notificationService.sendSseNotification(project.getManager().getId(), null, urgency.toUpperCase(), title, formattedDesc);
+        }
+        if (project.getAssignedEmployees() != null) {
+            for (UserEntity employee : project.getAssignedEmployees()) {
+                if (employee != null) {
+                    notificationService.sendSseNotification(employee.getId(), null, urgency.toUpperCase(), title, formattedDesc);
+                }
+            }
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public void emailAllMembers(Long projectId, String subject, String body, String username) {
+        ProjectEntity project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+        validateProjectManagementAccess(project, username);
+
+        UserEntity currentUser = getCurrentUser(username);
+        String roleName = currentUser.getRole().getName().name().substring(5).replace("_", " ").toLowerCase();
+
+        String formattedBody = body.replace("\n", "<br/>");
+
+        if (project.getManager() != null) {
+            String managerHtml = "<p>Hello " + project.getManager().getFullName() + ",</p>" +
+                    "<p>This is a project-wide email broadcast update regarding project <strong>" + project.getName() + "</strong> from <strong>" + currentUser.getFullName() + " (" + roleName + ")</strong>.</p>" +
+                    "<hr/>" +
+                    "<p>" + formattedBody + "</p>";
+            notificationService.sendEmail(project.getManager().getEmail(), subject, managerHtml);
+        }
+        if (project.getAssignedEmployees() != null) {
+            for (UserEntity employee : project.getAssignedEmployees()) {
+                if (employee != null) {
+                    String employeeHtml = "<p>Hello " + employee.getFullName() + ",</p>" +
+                            "<p>This is a project-wide email broadcast update regarding project <strong>" + project.getName() + "</strong> from <strong>" + currentUser.getFullName() + " (" + roleName + ")</strong>.</p>" +
+                            "<hr/>" +
+                            "<p>" + formattedBody + "</p>";
+                    notificationService.sendEmail(employee.getEmail(), subject, employeeHtml);
+                }
+            }
+        }
     }
 
     public void validateProjectAccess(ProjectEntity project, String username) {

@@ -26,6 +26,7 @@ public class TaskService {
     private final ProjectService projectService;
     private final AuthService authService;
     private final AuditLogService auditLogService;
+    private final NotificationService notificationService;
 
     @Transactional
     public TaskResponseDto createTask(Long projectId, TaskRequestDto dto, String username) {
@@ -82,6 +83,10 @@ public class TaskService {
 
         TaskEntity saved = taskRepository.save(task);
         auditLogService.logAction(currentUser, "created", "Task", saved.getName(), "—", saved.getStatus().name(), project.getId());
+        
+        // Notify assigned employees
+        notifyAssignees(saved, "New Task Assigned");
+        
         return mapToTaskResponse(saved);
     }
 
@@ -168,6 +173,10 @@ public class TaskService {
         TaskEntity saved = taskRepository.save(task);
         UserEntity currentUser = getCurrentUser(username);
         auditLogService.logAction(currentUser, "updated", "Task", saved.getName(), "—", saved.getStatus().name(), project.getId());
+        
+        // Notify assigned employees
+        notifyAssignees(saved, "Task Details Updated");
+        
         return mapToTaskResponse(saved);
     }
 
@@ -219,6 +228,12 @@ public class TaskService {
         TaskEntity saved = taskRepository.save(task);
         UserEntity currentUser = getCurrentUser(username);
         auditLogService.logAction(currentUser, "assigned", "Task", saved.getName(), "—", employee.getFullName(), saved.getProject().getId());
+        
+        // Notify assigned employee
+        notificationService.sendSseNotification(employee.getId(), saved.getId(), "TASK_ASSIGNED", "New Task Assigned", "You have been assigned to task: " + saved.getName());
+        String emailHtml = "<p>Hello " + employee.getFullName() + ",</p><p>You have been assigned to task: <b>" + saved.getName() + "</b> (Project: " + saved.getProject().getName() + ").</p>";
+        notificationService.sendEmail(employee.getEmail(), "New Task Assigned", emailHtml);
+        
         return mapToTaskResponse(saved);
     }
 
@@ -302,5 +317,17 @@ public class TaskService {
         if (p.equals("HIGH")) return TaskPriority.HIGH;
         if (p.equals("URGENT") || p.equals("CRITICAL")) return TaskPriority.CRITICAL;
         return TaskPriority.MEDIUM;
+    }
+
+    private void notifyAssignees(TaskEntity task, String subject) {
+        if (task.getEmployees() != null) {
+            for (UserEntity employee : task.getEmployees()) {
+                if (employee != null) {
+                    notificationService.sendSseNotification(employee.getId(), task.getId(), "TASK_ASSIGNED", subject, "Task: " + task.getName());
+                    String emailHtml = "<p>Hello " + employee.getFullName() + ",</p><p>You have been assigned to task: <b>" + task.getName() + "</b> (Project: " + task.getProject().getName() + ").</p>";
+                    notificationService.sendEmail(employee.getEmail(), subject, emailHtml);
+                }
+            }
+        }
     }
 }

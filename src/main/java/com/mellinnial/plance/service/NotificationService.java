@@ -3,7 +3,6 @@ package com.mellinnial.plance.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -13,21 +12,38 @@ import java.util.Map;
 @Slf4j
 public class NotificationService {
 
-    private final RestTemplate restTemplate = new RestTemplate();
-    private static final String NEXTJS_NOTIF_URL = "http://localhost:3000/api/notifications/send";
-    private static final String NEXTJS_EMAIL_URL = "http://localhost:3000/api/email/send";
+    private final RedisProducer redisProducer;
+
+    private static final String NOTIFICATIONS_QUEUE = "millennial:notifications";
+    private static final String EMAILS_QUEUE = "millennial:emails";
+
+    public void sendSseNotification(Long userId, Long taskId, String type, String title, String description) {
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("userId", userId);
+            payload.put("taskId", taskId);
+            payload.put("type", type);
+            payload.put("title", title);
+            payload.put("message", description);
+
+            redisProducer.pushToQueue(NOTIFICATIONS_QUEUE, payload);
+            log.info("Successfully queued SSE notification to Redis for userId {}: {}", userId, title);
+        } catch (Exception e) {
+            log.error("Could not queue SSE notification to Redis: {}", e.getMessage());
+        }
+    }
 
     public void sendSseNotification(String title, String description, String urgency) {
         try {
             Map<String, Object> payload = new HashMap<>();
             payload.put("title", title);
-            payload.put("description", description);
-            payload.put("urgency", urgency);
+            payload.put("message", description);
+            payload.put("type", urgency.toUpperCase());
 
-            restTemplate.postForObject(NEXTJS_NOTIF_URL, payload, Map.class);
-            log.info("Successfully dispatched SSE notification: {}", title);
+            redisProducer.pushToQueue(NOTIFICATIONS_QUEUE, payload);
+            log.info("Successfully queued general SSE notification to Redis: {}", title);
         } catch (Exception e) {
-            log.warn("Could not dispatch SSE notification to Next.js: {}", e.getMessage());
+            log.error("Could not queue general SSE notification to Redis: {}", e.getMessage());
         }
     }
 
@@ -38,10 +54,10 @@ public class NotificationService {
             payload.put("subject", subject);
             payload.put("html", html);
 
-            restTemplate.postForObject(NEXTJS_EMAIL_URL, payload, Map.class);
-            log.info("Successfully dispatched email to: {}", to);
+            redisProducer.pushToQueue(EMAILS_QUEUE, payload);
+            log.info("Successfully queued email to Redis for {}: {}", to, subject);
         } catch (Exception e) {
-            log.warn("Could not dispatch email notification to Next.js: {}", e.getMessage());
+            log.error("Could not queue email to Redis: {}", e.getMessage());
         }
     }
 }
