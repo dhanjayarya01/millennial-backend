@@ -99,7 +99,10 @@ public class WorkLogService {
                     .filter(log -> log.getTask().getProject().getManager() != null && log.getTask().getProject().getManager().getId().equals(currentUser.getId()))
                     .collect(Collectors.toList());
         } else {
-            logs = workLogRepository.findByAuthorId(currentUser.getId());
+            logs = workLogRepository.findAll().stream()
+                    .filter(log -> log.getAuthor().getId().equals(currentUser.getId()) ||
+                            (log.getTask().getEmployees() != null && log.getTask().getEmployees().stream().anyMatch(e -> e.getId().equals(currentUser.getId()))))
+                    .collect(Collectors.toList());
         }
 
         return logs.stream()

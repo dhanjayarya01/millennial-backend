@@ -87,4 +87,13 @@ public class UserService {
         }
         userRepository.deleteById(userId);
     }
+
+    @Transactional
+    public UserResponseDto updateProfilePicture(String email, String profilePictureUrl) {
+        UserEntity user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        user.setProfilePictureUrl(profilePictureUrl);
+        UserEntity saved = userRepository.save(user);
+        return authService.mapToUserResponse(saved);
+    }
 }

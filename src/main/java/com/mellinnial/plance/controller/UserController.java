@@ -53,4 +53,14 @@ public class UserController {
         userService.deleteUser(id, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponseDto.success("User deleted successfully"));
     }
+
+    @PutMapping("/profile-picture")
+    public ResponseEntity<ApiResponseDto<UserResponseDto>> updateProfilePicture(
+            @RequestBody java.util.Map<String, String> body,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        String profilePictureUrl = body.get("profilePictureUrl");
+        UserResponseDto response = userService.updateProfilePicture(userDetails.getUsername(), profilePictureUrl);
+        return ResponseEntity.ok(ApiResponseDto.success("Profile picture updated successfully", response));
+    }
 }
