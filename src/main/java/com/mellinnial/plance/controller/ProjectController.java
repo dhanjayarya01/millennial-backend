@@ -108,7 +108,7 @@ public class ProjectController {
     }
 
     @PostMapping("/{id}/notify-all")
-    public ResponseEntity<ApiResponseDto<String>> notifyAll(
+    public ResponseEntity<ApiResponseDto<String>> notifyAllMembers(
             @PathVariable Long id,
             @RequestBody java.util.Map<String, String> body,
             @AuthenticationPrincipal UserDetails userDetails

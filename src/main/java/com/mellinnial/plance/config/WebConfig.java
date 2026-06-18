@@ -29,7 +29,7 @@ public class WebConfig implements WebMvcConfigurer {
             List<String> origins = Arrays.stream(allowedOrigins.split(","))
                     .map(String::trim)
                     .toList();
-            config.setAllowedOrigins(origins);
+            config.setAllowedOriginPatterns(origins);
         } else {
             config.addAllowedOriginPattern("*");
         }

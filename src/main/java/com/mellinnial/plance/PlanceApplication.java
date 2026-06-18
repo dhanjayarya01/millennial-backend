@@ -2,7 +2,6 @@ package com.mellinnial.plance;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -12,7 +11,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 @SpringBootApplication
-@EnableScheduling
 public class PlanceApplication {
 
     public static void main(String[] args) {
