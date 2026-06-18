@@ -3,6 +3,7 @@ package com.mellinnial.plance.controller;
 import com.mellinnial.plance.dto.response.ApiResponseDto;
 import com.mellinnial.plance.dto.response.ReportResponseDto;
 import com.mellinnial.plance.service.ReportService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/reports")
 @RequiredArgsConstructor
+@Tag(name = "Reports", description = "Generate productivity & status reports for projects and employees")
 public class ReportController {
 
     private final ReportService reportService;

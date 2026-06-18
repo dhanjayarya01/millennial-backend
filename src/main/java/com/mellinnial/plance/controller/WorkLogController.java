@@ -6,6 +6,7 @@ import com.mellinnial.plance.dto.response.ApiResponseDto;
 import com.mellinnial.plance.dto.response.WorkLogReplyResponseDto;
 import com.mellinnial.plance.dto.response.WorkLogResponseDto;
 import com.mellinnial.plance.service.WorkLogService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +19,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
+@Tag(name = "Work Logs", description = "Log work hours and replies on tasks")
 public class WorkLogController {
 
     private final WorkLogService workLogService;

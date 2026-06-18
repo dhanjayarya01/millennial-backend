@@ -5,6 +5,7 @@ import com.mellinnial.plance.dto.request.TaskStatusUpdateDto;
 import com.mellinnial.plance.dto.response.ApiResponseDto;
 import com.mellinnial.plance.dto.response.TaskResponseDto;
 import com.mellinnial.plance.service.TaskService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
+@Tag(name = "Tasks", description = "Create, update, delete and manage tasks within projects")
 public class TaskController {
 
     private final TaskService taskService;

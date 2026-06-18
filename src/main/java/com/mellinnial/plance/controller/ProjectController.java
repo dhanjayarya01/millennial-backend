@@ -4,6 +4,8 @@ import com.mellinnial.plance.dto.request.ProjectRequestDto;
 import com.mellinnial.plance.dto.response.ApiResponseDto;
 import com.mellinnial.plance.dto.response.ProjectResponseDto;
 import com.mellinnial.plance.service.ProjectService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +18,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/projects")
 @RequiredArgsConstructor
+@Tag(name = "Projects", description = "CRUD operations and member management for projects")
 public class ProjectController {
 
     private final ProjectService projectService;
