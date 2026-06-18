@@ -27,6 +27,7 @@ public class ProjectService {
     private final UserRepository userRepository;
     private final TaskRepository taskRepository;
     private final AuthService authService;
+    private final AuditLogService auditLogService;
 
     @Transactional
     public ProjectResponseDto createProject(ProjectRequestDto dto, String username) {
@@ -53,6 +54,7 @@ public class ProjectService {
         }
 
         ProjectEntity saved = projectRepository.save(project);
+        auditLogService.logAction(currentUser, "created", "Project", saved.getName(), "—", saved.getStatus().name(), saved.getId());
         return mapToProjectResponse(saved);
     }
 
@@ -123,6 +125,7 @@ public class ProjectService {
         }
 
         ProjectEntity saved = projectRepository.save(project);
+        auditLogService.logAction(currentUser, "updated", "Project", saved.getName(), "—", saved.getStatus().name(), saved.getId());
         return mapToProjectResponse(saved);
     }
 
@@ -157,6 +160,7 @@ public class ProjectService {
 
         project.setManager(manager);
         ProjectEntity saved = projectRepository.save(project);
+        auditLogService.logAction(currentUser, "assigned_manager", "Project", saved.getName(), "—", manager.getFullName(), saved.getId());
         return mapToProjectResponse(saved);
     }
 
@@ -191,6 +195,8 @@ public class ProjectService {
 
         project.getAssignedEmployees().add(employee);
         ProjectEntity saved = projectRepository.save(project);
+        UserEntity currentUser = getCurrentUser(username);
+        auditLogService.logAction(currentUser, "assigned_employee", "Project", saved.getName(), "—", employee.getFullName(), saved.getId());
         return mapToProjectResponse(saved);
     }
 
@@ -206,6 +212,8 @@ public class ProjectService {
 
         project.getAssignedEmployees().remove(employee);
         ProjectEntity saved = projectRepository.save(project);
+        UserEntity currentUser = getCurrentUser(username);
+        auditLogService.logAction(currentUser, "removed_employee", "Project", saved.getName(), "—", employee.getFullName(), saved.getId());
         return mapToProjectResponse(saved);
     }
 

@@ -29,6 +29,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final UserDetailsService userDetailsService;
+    private final AuditLogService auditLogService;
 
     @Transactional
     public UserResponseDto register(RegisterRequestDto request) {
@@ -81,6 +82,8 @@ public class AuthService {
         );
 
         String jwt = jwtService.generateToken(userDetails);
+
+        auditLogService.logAction(user, "login", "User", user.getFullName(), "—", "Logged in successfully", null);
 
         return AuthResponseDto.builder()
                 .accessToken(jwt)

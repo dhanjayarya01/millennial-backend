@@ -25,6 +25,7 @@ public class TaskService {
     private final UserRepository userRepository;
     private final ProjectService projectService;
     private final AuthService authService;
+    private final AuditLogService auditLogService;
 
     @Transactional
     public TaskResponseDto createTask(Long projectId, TaskRequestDto dto, String username) {
@@ -80,6 +81,7 @@ public class TaskService {
         }
 
         TaskEntity saved = taskRepository.save(task);
+        auditLogService.logAction(currentUser, "created", "Task", saved.getName(), "—", saved.getStatus().name(), project.getId());
         return mapToTaskResponse(saved);
     }
 
@@ -164,6 +166,8 @@ public class TaskService {
         }
 
         TaskEntity saved = taskRepository.save(task);
+        UserEntity currentUser = getCurrentUser(username);
+        auditLogService.logAction(currentUser, "updated", "Task", saved.getName(), "—", saved.getStatus().name(), project.getId());
         return mapToTaskResponse(saved);
     }
 
@@ -185,6 +189,7 @@ public class TaskService {
 
         task.setStatus(mapTaskStatus(dto.getStatus()));
         TaskEntity saved = taskRepository.save(task);
+        auditLogService.logAction(currentUser, "changed status on", "Task", saved.getName(), "—", saved.getStatus().name(), saved.getProject().getId());
         return mapToTaskResponse(saved);
     }
 
@@ -212,6 +217,8 @@ public class TaskService {
 
         setEmployeesSafely(task, java.util.List.of(employee));
         TaskEntity saved = taskRepository.save(task);
+        UserEntity currentUser = getCurrentUser(username);
+        auditLogService.logAction(currentUser, "assigned", "Task", saved.getName(), "—", employee.getFullName(), saved.getProject().getId());
         return mapToTaskResponse(saved);
     }
 
