@@ -63,4 +63,22 @@ public class UserController {
         UserResponseDto response = userService.updateProfilePicture(userDetails.getUsername(), profilePictureUrl);
         return ResponseEntity.ok(ApiResponseDto.success("Profile picture updated successfully", response));
     }
+
+    @PutMapping("/change-password")
+    public ResponseEntity<ApiResponseDto<String>> changePassword(
+            @RequestBody java.util.Map<String, String> body,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        String currentPassword = body.get("currentPassword");
+        String newPassword = body.get("newPassword");
+        if (currentPassword == null || currentPassword.isBlank() || newPassword == null || newPassword.isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponseDto.error("Current and new passwords are required"));
+        }
+        try {
+            userService.changePassword(userDetails.getUsername(), currentPassword, newPassword);
+            return ResponseEntity.ok(ApiResponseDto.success("Password changed successfully", "OK"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponseDto.error(e.getMessage()));
+        }
+    }
 }

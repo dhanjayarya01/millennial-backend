@@ -8,6 +8,7 @@ import com.mellinnial.plance.repository.UserRepository;
 import com.mellinnial.plance.repository.RoleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +19,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final AuthService authService;
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional
     public UserResponseDto verifyUser(Long userId, String verifierEmail) {
@@ -95,5 +97,16 @@ public class UserService {
         user.setProfilePictureUrl(profilePictureUrl);
         UserEntity saved = userRepository.save(user);
         return authService.mapToUserResponse(saved);
+    }
+
+    @Transactional
+    public void changePassword(String email, String currentPassword, String newPassword) {
+        UserEntity user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new IllegalArgumentException("Current password is incorrect");
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
     }
 }
